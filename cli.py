@@ -1,15 +1,46 @@
 import argparse
 import sys
 
+from scraper import create_session, search_novels, get_novel_info
+
 
 def cmd_search(args):
     print(f"Searching for: {args.query}")
-    print("(Not yet implemented)")
+    results = search_novels(args.query)
+
+    if not results:
+        print("No results found, or search is unavailable.")
+        print("Try providing the novel index page URL directly: python cli.py list <URL>")
+        return
+
+    print()
+    for i, novel in enumerate(results, 1):
+        author_str = f" — {novel['author']}" if novel['author'] else ""
+        print(f"  {i}. {novel['title']}{author_str}")
+        print(f"     {novel['url']}")
+    print()
+    print("Use 'python cli.py list <URL>' to view chapters, or")
+    print("    'python cli.py download <URL>' to download.")
 
 
 def cmd_list(args):
-    print(f"Listing chapters from: {args.url}")
-    print("(Not yet implemented)")
+    print(f"Fetching chapter list from: {args.url}")
+    session = create_session()
+
+    try:
+        info = get_novel_info(args.url, session)
+    except Exception as e:
+        print(f"Error: {e}")
+        return
+
+    print(f"\n  Title:  {info['title']}")
+    if info['author']:
+        print(f"  Author: {info['author']}")
+    print(f"  Chapters: {len(info['chapters'])}")
+    print()
+
+    for i, ch in enumerate(info['chapters'], 1):
+        print(f"  {i:>4}. {ch['title']}")
 
 
 def cmd_download(args):
