@@ -40,3 +40,103 @@ def parse_chapter_body(html):
 
     content = ''.join(body_lines)
     return content, page_info[0], page_info[1]
+
+
+def _xpath_first(root, paths, label):
+    """Try multiple XPath expressions, return first non-empty result.
+    Raises ParseError if all fail.
+    """
+    for xpath in paths:
+        result = root.xpath(xpath)
+        if result:
+            return result
+    raise ParseError(f"Failed to extract {label} — all XPaths returned empty")
+
+
+def parse_search_results(html):
+    """Extract novel entries from search results page.
+
+    Returns list of dicts: [{"title": str, "author": str, "url": str}, ...]
+    """
+    root = etree.HTML(html)
+
+    # Try common result row patterns
+    rows = root.xpath("//div[@id='main']//table/tr[position()>1]")
+    if not rows:
+        rows = root.xpath("//div[contains(@class,'result')]//li")
+    if not rows:
+        rows = root.xpath("//div[@class='novellist']//li")
+
+    results = []
+    for row in rows:
+        links = row.xpath(".//a")
+        if not links:
+            continue
+        a = links[0]
+        title = (a.text or '').strip()
+        href = a.get("href", "")
+
+        # Author is often in the 3rd column or a sibling span
+        spans = row.xpath(".//span")
+        author = spans[0].text.strip() if spans and spans[0].text else ""
+
+        if title and href:
+            results.append({"title": title, "author": author, "url": href})
+
+    if not results:
+        raise ParseError("Failed to extract search results — no novel entries found")
+    return results
+
+
+def parse_novel_info(html, base_url=""):
+    """Extract novel metadata and chapter list from novel index page.
+
+    Returns dict:
+        {"title": str, "author": str, "chapters": [{"title": str, "url": str}, ...]}
+    """
+    root = etree.HTML(html)
+
+    # Title
+    title_paths = [
+        "//div[@id='info']/h1/text()",
+        "//div[@class='book-info']/h1/text()",
+        "//meta[@property='og:title']/@content",
+        "//h1/text()",
+    ]
+    title = _xpath_first(root, title_paths, "novel title")[0].strip()
+
+    # Author
+    author_paths = [
+        "//div[@id='info']/p[1]/text()",
+        "//div[@class='book-info']/p/text()",
+    ]
+    try:
+        author_raw = _xpath_first(root, author_paths, "author")[0]
+        author = author_raw.replace("作者：", "").replace("作者:", "").strip()
+    except ParseError:
+        author = ""
+
+    # Chapter list
+    chapter_paths = [
+        "//div[@id='list']//dd/a",
+        "//div[contains(@class,'listmain')]//dd/a",
+        "//div[contains(@class,'chapter')]//li/a",
+    ]
+    chapter_nodes = _xpath_first(root, chapter_paths, "chapter list")
+
+    chapters = []
+    for a in chapter_nodes:
+        ch_title = (a.text or '').strip()
+        ch_href = a.get("href", "")
+        if ch_title and ch_href:
+            # Resolve relative URLs
+            if ch_href.startswith("/"):
+                ch_href = "https://www.biquuge.com" + ch_href
+            elif not ch_href.startswith("http"):
+                ch_href = base_url.rstrip("/") + "/" + ch_href.lstrip("/")
+            chapters.append({"title": ch_title, "url": ch_href})
+
+    if not chapters:
+        raise ParseError("Failed to extract chapter list — no chapter links found")
+
+    return {"title": title, "author": author, "chapters": chapters}
