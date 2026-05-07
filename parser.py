@@ -98,29 +98,33 @@ def parse_novel_info(html, base_url=""):
 
     # Title
     title_paths = [
-        "//div[@id='info']/h1/text()",
-        "//div[@class='book-info']/h1/text()",
-        "//meta[@property='og:title']/@content",
+        "//meta[@property='og:novel:book_name']/@content",
+        "//div[@class='info']/h1/text()",
         "//h1/text()",
+        "//meta[@property='og:title']/@content",
     ]
     title = _xpath_first(root, title_paths, "novel title")[0].strip()
 
-    # Author
-    author_paths = [
-        "//div[@id='info']/p[1]/text()",
-        "//div[@class='book-info']/p/text()",
-    ]
-    try:
-        author_raw = _xpath_first(root, author_paths, "author")[0]
-        author = author_raw.replace("作者：", "").replace("作者:", "").strip()
-    except ParseError:
-        author = ""
+    # Author — prefer og:novel:author meta, fall back to info block
+    author = ""
+    author_meta = root.xpath("//meta[@property='og:novel:author']/@content")
+    if author_meta:
+        author = author_meta[0].strip()
+    else:
+        try:
+            author_paths = [
+                "//div[contains(@class,'info')]//li[1]/a/text()",
+                "//div[@class='info']//ul/li[1]/a/text()",
+            ]
+            author = _xpath_first(root, author_paths, "author")[0].strip()
+        except ParseError:
+            pass
 
-    # Chapter list
+    # Chapter list — real site uses book_list book_list2 class
     chapter_paths = [
+        "//div[contains(@class,'book_list2')]//li/a",
+        "//div[contains(@class,'book_list')]//li/a",
         "//div[@id='list']//dd/a",
-        "//div[contains(@class,'listmain')]//dd/a",
-        "//div[contains(@class,'chapter')]//li/a",
     ]
     chapter_nodes = _xpath_first(root, chapter_paths, "chapter list")
 

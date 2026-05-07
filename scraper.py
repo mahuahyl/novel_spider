@@ -92,8 +92,8 @@ def search_novels(query):
     session = create_session()
 
     search_urls = [
+        ("GET", "https://www.biquuge.com/search.php?q=" + query, None),
         ("POST", "https://www.biquuge.com/search.html", {"searchkey": query}),
-        ("GET", "https://www.biquuge.com/modules/article/search.php?searchkey=" + query, None),
     ]
 
     for method, url, data in search_urls:
