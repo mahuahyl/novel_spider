@@ -31,10 +31,16 @@ def parse_chapter_body(html):
         raise ParseError("Failed to extract chapter content — "
                          "XPath '//article[@class=\"font_max\"]/text()' returned empty")
 
-    # Detect page info from the first line before trimming
-    page_info = parse_page_info(lines[0]) if lines else (1, 1)
+    # Page indicator is usually in the first 3 lines (often line 1,
+    # as line 0 is a blank indent). Search early lines.
+    page_info = (1, 1)
+    for line in lines[:3]:
+        pi = parse_page_info(line)
+        if pi != (1, 1):
+            page_info = pi
+            break
 
-    # Strip boilerplate: first 2 lines (page indicator + site header),
+    # Strip boilerplate: first 2 lines (indent + page indicator),
     # last 2 lines (page indicator + next/prev links)
     body_lines = lines[2:-2]
 
