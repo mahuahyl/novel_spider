@@ -56,6 +56,7 @@ def cmd_download(args):
         resume=args.resume,
         verbose=args.verbose,
         dry_run=args.dry_run,
+        part=args.part,
     )
 
 
@@ -79,6 +80,7 @@ def main():
     p_dl.add_argument("-s", "--start", type=int, default=1, help="Start chapter (default: 1)")
     p_dl.add_argument("-e", "--end", type=int, default=0, help="End chapter (default: last)")
     p_dl.add_argument("-a", "--all", dest="all_chapters", action="store_true", help="Download all chapters")
+    p_dl.add_argument("-p", "--part", action="store_true", help="Individually include one chapter in every txt file")
     p_dl.add_argument("-o", "--output", default=None, help="Output directory (default: ./novels/)")
     p_dl.add_argument("-d", "--delay", type=float, default=None, help="Delay between requests in seconds")
     p_dl.add_argument("--resume", action="store_true", help="Skip already downloaded chapters")

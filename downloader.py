@@ -3,6 +3,8 @@ import re
 import sys
 import time
 
+from pathlib import Path
+
 from config import Config
 from scraper import create_session, get_novel_info, fetch_chapter_all_pages, ScraperError
 from parser import ParseError
@@ -10,7 +12,7 @@ from utils import sanitize_filename, ensure_dir
 
 
 def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
-                      resume=False, verbose=False, dry_run=False, config=None):
+                      resume=False, verbose=False, dry_run=False, part=False, config=None):
     """Download novel chapters and save as text files.
 
     Returns (downloaded_count, failed_count).
@@ -71,6 +73,7 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
     downloaded = 0
     failed = 0
     total = end - start + 1
+    filepath_list = []
 
     try:
         for idx in range(start - 1, end):
@@ -85,6 +88,7 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
                 clean_title = ch_title
             filename = f"第{ch_num}章 {sanitize_filename(clean_title)}.txt"
             filepath = os.path.join(novel_dir, filename)
+            filepath_list.append(filepath)
 
             # Resume: skip if file exists
             if resume and os.path.exists(filepath):
@@ -113,6 +117,7 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
 
             # Progress update for non-verbose mode
             if not verbose:
+                print('\r'+' '*64, end="", flush=True)      #擦除上一条信息
                 print(f"\r[{ch_num}/{total}] {ch_title}", end="", flush=True)
 
             if delay:
@@ -125,6 +130,26 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
 
     if not verbose:
         print()  # newline after progress line
+
+    # 5. Integration
+    if not part:
+        print(f"Integrating chapters {start} to {end} ({total} chapters)")
+        filename = f"{start}-{end}章.txt"
+        filepath = os.path.join(novel_dir, filename)
+        output = Path(filepath)
+        count = 1
+        with output.open("w", encoding="utf-8") as outfile:
+            for readpath in filepath_list:
+                input = Path(readpath)
+                outfile.write(f"{input.name[:-4]}\n")
+                outfile.write(input.read_text(encoding="utf-8"))
+                outfile.write("\n\n")
+                print('\r'+' '*64, end="", flush=True)
+                print(f"\r[{count}/{total}] {input.name[:-4]}", end="", flush=True)
+                count += 1
+                input.unlink()
+
+        print()
 
     # 5. Summary
     print(f"\nDone! Saved to: {novel_dir}")
