@@ -60,28 +60,59 @@ def parse_search_results(html):
     """
     root = etree.HTML(html)
 
-    # Try common result row patterns
-    rows = root.xpath("//div[@id='main']//table/tr[position()>1]")
-    if not rows:
-        rows = root.xpath("//div[contains(@class,'result')]//li")
-    if not rows:
-        rows = root.xpath("//div[@class='novellist']//li")
-
     results = []
-    for row in rows:
-        links = row.xpath(".//a")
-        if not links:
+
+    # Real biquuge site uses dl>dt>a for image+link and dd>h3>a for title
+    items = root.xpath("//div[contains(@class,'hot')]//dl")
+    if not items:
+        items = root.xpath("//div[@id='main']//dl")
+    if not items:
+        items = root.xpath("//div[contains(@class,'result')]//li")
+
+    for dl in items:
+        # Title and URL from h3>a or dt>a
+        title_links = dl.xpath(".//h3/a")
+        if not title_links:
+            title_links = dl.xpath(".//dt/a")
+        if not title_links:
+            title_links = dl.xpath(".//a")
+
+        if not title_links:
             continue
-        a = links[0]
+
+        a = title_links[0]
         title = (a.text or '').strip()
+        # Strip category prefix like "[科幻]"
+        title = re.sub(r'^\[.*?\]', '', title).strip()
         href = a.get("href", "")
 
-        # Author is often in the 3rd column or a sibling span
-        spans = row.xpath(".//span")
-        author = spans[0].text.strip() if spans and spans[0].text else ""
+        # Author from span inside book_other dd
+        author = ""
+        author_spans = dl.xpath(".//dd[contains(@class,'book_other')]/span/text()")
+        if author_spans:
+            author = author_spans[0].strip()
 
         if title and href:
+            if href.startswith("/"):
+                href = "https://www.biquuge.com" + href
+            elif not href.startswith("http"):
+                href = "https://www.biquuge.com/" + href
             results.append({"title": title, "author": author, "url": href})
+
+    # Fallback: try generic patterns
+    if not results:
+        rows = root.xpath("//div[@id='main']//table/tr[position()>1]")
+        for row in rows:
+            links = row.xpath(".//a")
+            if not links:
+                continue
+            a = links[0]
+            title = (a.text or '').strip()
+            href = a.get("href", "")
+            if title and href:
+                if href.startswith("/"):
+                    href = "https://www.biquuge.com" + href
+                results.append({"title": title, "author": "", "url": href})
 
     if not results:
         raise ParseError("Failed to extract search results — no novel entries found")
@@ -144,3 +175,26 @@ def parse_novel_info(html, base_url=""):
         raise ParseError("Failed to extract chapter list — no chapter links found")
 
     return {"title": title, "author": author, "chapters": chapters}
+
+
+def parse_total_pages(html):
+    """Extract total chapter list page count from pagination (e.g. '1/6' → 6).
+    Returns 1 if no pagination found.
+    """
+    root = etree.HTML(html)
+    # Look for "1/6" pattern in page links
+    page_texts = root.xpath("//div[contains(@class,'pages')]//a/text()")
+    for text in page_texts:
+        text = text.strip()
+        if '/' in text and text.replace('/', '').replace('0', '').replace('1', '').replace('2', '').replace('3', '').replace('4', '').replace('5', '').replace('6', '').replace('7', '').replace('8', '').replace('9', '') == '/':
+            parts = text.split('/')
+            if len(parts) == 2 and parts[1].isdigit():
+                return int(parts[1])
+    # Fallback: count page number links
+    page_links = root.xpath("//div[contains(@class,'pages')]//a/@href")
+    max_page = 1
+    for href in page_links:
+        m = re.search(r'index_(\d+)\.html', href)
+        if m:
+            max_page = max(max_page, int(m.group(1)))
+    return max_page

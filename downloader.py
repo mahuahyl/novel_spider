@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 
@@ -78,7 +79,11 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
             ch_title = ch["title"]
             ch_url = ch["url"]
 
-            filename = f"第{ch_num}章 {sanitize_filename(ch_title)}.txt"
+            # Strip leading "第N章" prefix to avoid duplication
+            clean_title = re.sub(r'^第\d+章\s*', '', ch_title).strip()
+            if not clean_title:
+                clean_title = ch_title
+            filename = f"第{ch_num}章 {sanitize_filename(clean_title)}.txt"
             filepath = os.path.join(novel_dir, filename)
 
             # Resume: skip if file exists

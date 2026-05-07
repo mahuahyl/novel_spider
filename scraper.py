@@ -4,7 +4,7 @@ import re
 import requests
 
 from config import Config
-from parser import parse_chapter_body, parse_search_results, parse_novel_info
+from parser import parse_chapter_body, parse_search_results, parse_novel_info, parse_total_pages
 from utils import retry
 
 
@@ -114,7 +114,23 @@ def search_novels(query):
 def get_novel_info(novel_url, session):
     """Fetch the novel index page and extract metadata + chapter list.
 
+    Handles paginated chapter lists.
     Returns dict with keys: title, author, chapters.
     """
-    html = fetch_page(novel_url, session)
-    return parse_novel_info(html, novel_url)
+    # Normalize: strip trailing filename, get clean base URL
+    base = re.sub(r'index_\d+\.html$', '', novel_url.rstrip("/"))
+    base = base.rstrip("/")
+
+    html = fetch_page(base + "/", session)
+    info = parse_novel_info(html, base + "/")
+
+    total_pages = parse_total_pages(html)
+
+    if total_pages > 1:
+        for page_num in range(2, total_pages + 1):
+            page_url = f"{base}/index_{page_num}.html"
+            page_html = fetch_page(page_url, session)
+            page_info = parse_novel_info(page_html, page_url)
+            info["chapters"].extend(page_info["chapters"])
+
+    return info
