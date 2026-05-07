@@ -2,6 +2,7 @@ import argparse
 import sys
 
 from scraper import create_session, search_novels, get_novel_info
+from downloader import download_chapters
 
 
 def cmd_search(args):
@@ -44,13 +45,18 @@ def cmd_list(args):
 
 
 def cmd_download(args):
-    print(f"Downloading from: {args.url}")
-    if args.all_chapters:
-        print("  Range: all chapters")
-    else:
-        print(f"  Range: {args.start} - {args.end}")
-    print(f"  Output: {args.output}")
-    print("(Not yet implemented)")
+    start = 1 if args.all_chapters else args.start
+    end = 0 if args.all_chapters else args.end
+    download_chapters(
+        novel_url=args.url,
+        start=start,
+        end=end,
+        output_dir=args.output,
+        delay=args.delay if args.delay is not None else 1.0,
+        resume=args.resume,
+        verbose=args.verbose,
+        dry_run=args.dry_run,
+    )
 
 
 def main():
