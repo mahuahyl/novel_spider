@@ -1,0 +1,6 @@
+novels/
+__pycache__/
+*.pyc
+novel_spider_config.json
+.DS_Store
+Thumbs.db
