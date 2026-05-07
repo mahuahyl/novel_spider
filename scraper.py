@@ -1,19 +1,15 @@
 import time
 import re
-from urllib.parse import urljoin
 
 import requests
 
 from config import Config
-from parser import parse_chapter_body
+from parser import parse_chapter_body, parse_search_results, parse_novel_info
 from utils import retry
 
 
 class ScraperError(Exception):
     """Raised on unrecoverable HTTP or network errors."""
-
-
-BASE_URL = "https://www.biquuge.com"
 
 
 def create_session(config=None):
@@ -85,3 +81,40 @@ def fetch_chapter_all_pages(first_page_url, session, delay=0):
             time.sleep(delay)
 
     return ''.join(parts)
+
+
+def search_novels(query):
+    """Search for novels by name. Returns list of dicts.
+
+    Tries multiple search endpoints. Returns empty list if search fails
+    (user should fall back to providing URL directly).
+    """
+    session = create_session()
+
+    search_urls = [
+        ("POST", "https://www.biquuge.com/search.html", {"searchkey": query}),
+        ("GET", "https://www.biquuge.com/modules/article/search.php?searchkey=" + query, None),
+    ]
+
+    for method, url, data in search_urls:
+        try:
+            if method == "POST":
+                resp = session.post(url, data=data, timeout=30)
+            else:
+                resp = session.get(url, timeout=30)
+            resp.raise_for_status()
+            resp.encoding = "utf-8"
+            return parse_search_results(resp.text)
+        except Exception:
+            continue
+
+    return []
+
+
+def get_novel_info(novel_url, session):
+    """Fetch the novel index page and extract metadata + chapter list.
+
+    Returns dict with keys: title, author, chapters.
+    """
+    html = fetch_page(novel_url, session)
+    return parse_novel_info(html, novel_url)
