@@ -9,11 +9,11 @@ from utils import retry
 
 
 class ScraperError(Exception):
-    """Raised on unrecoverable HTTP or network errors."""
+    """不可恢复的 HTTP 或网络错误时抛出。"""
 
 
 def create_session(config=None):
-    """Create a requests.Session with browser-like headers."""
+    """创建带浏览器模拟请求头的 requests.Session。"""
     if config is None:
         config = Config()
     session = requests.Session()
@@ -35,7 +35,7 @@ def _do_request(session, url):
 
 
 def fetch_page(url, session):
-    """Fetch a single page, return HTML text. Raises ScraperError on failure."""
+    """抓取单个页面，返回 HTML 文本。失败时抛出 ScraperError。"""
     try:
         resp = _do_request(session, url)
         return resp.text
@@ -44,24 +44,24 @@ def fetch_page(url, session):
 
 
 def _make_page_url(base_url, page_num):
-    """Construct URL for a specific page of a chapter.
+    """构造章节某一页的 URL。
 
-    base_url without suffix is page 1; page 2+ use _N suffix:
-      .../123456.html       -> page 1
-      .../123456_2.html     -> page 2
-      .../123456_3.html     -> page 3
+    无后缀的 base_url 是第一页；第 2 页起用 _N 后缀：
+      .../123456.html       → 第 1 页
+      .../123456_2.html     → 第 2 页
+      .../123456_3.html     → 第 3 页
     """
     if page_num == 1:
         return base_url
-    # Insert _N before .html
+    # 在 .html 前面插入 _N
     return re.sub(r'(_\d+)?\.html$', f'_{page_num}.html', base_url)
 
 
 def fetch_chapter_all_pages(first_page_url, session, delay=0):
-    """Fetch all pages of a chapter, return concatenated content.
+    """抓取一章的全部页面，返回拼接后的内容。
 
-    Handles both single-page and multi-page chapters.
-    Uses the page indicator '第(X/Y)页' to detect when to stop.
+    自动处理单页和多页章节。
+    通过"第(X/Y)页"翻页标记判断何时停止。
     """
     parts = []
     page_num = 1
@@ -84,10 +84,10 @@ def fetch_chapter_all_pages(first_page_url, session, delay=0):
 
 
 def search_novels(query):
-    """Search for novels by name. Returns list of dicts.
+    """按名称搜索小说，返回字典列表。
 
-    Tries multiple search endpoints. Returns empty list if search fails
-    (user should fall back to providing URL directly).
+    尝试多个搜索接口。搜索失败返回空列表
+    （用户应降级为直接提供小说首页 URL）。
     """
     session = create_session()
 
@@ -112,12 +112,12 @@ def search_novels(query):
 
 
 def get_novel_info(novel_url, session):
-    """Fetch the novel index page and extract metadata + chapter list.
+    """抓取小说首页，提取元数据和章节目录。
 
-    Handles paginated chapter lists.
-    Returns dict with keys: title, author, chapters.
+    自动处理分页的章节目录。
+    返回字典，键: title（书名）, author（作者）, chapters（章节列表）。
     """
-    # Normalize: strip trailing filename, get clean base URL
+    # 标准化：去掉尾部文件名，得到干净的 base URL
     base = re.sub(r'index_\d+\.html$', '', novel_url.rstrip("/"))
     base = base.rstrip("/")
 

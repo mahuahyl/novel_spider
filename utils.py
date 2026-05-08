@@ -5,7 +5,7 @@ from functools import wraps
 
 
 def retry(max_attempts=3, backoff_factor=1.0):
-    """Decorator: retry on exception with exponential backoff."""
+    """装饰器：异常时指数退避重试。"""
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -23,10 +23,10 @@ def retry(max_attempts=3, backoff_factor=1.0):
 
 
 def sanitize_filename(name):
-    """Remove characters illegal in Windows/Linux filenames."""
+    """去除 Windows/Linux 文件名中的非法字符。"""
     return re.sub(r'[\\/:*?"<>|]', '', name).strip()
 
 
 def ensure_dir(path):
-    """Create directory if it doesn't exist."""
+    """创建目录（如不存在）。"""
     os.makedirs(path, exist_ok=True)
