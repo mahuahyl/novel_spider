@@ -37,3 +37,4 @@ def get_all_sites():
 import sites.biquuge  # noqa: E402, F401
 import sites.xiaoshuopu  # noqa: E402, F401
 import sites.newqy  # noqa: E402, F401
+import sites.douyinxs  # noqa: E402, F401
