@@ -20,9 +20,9 @@ class XiaoshuopuAdapter(SiteAdapter):
     # --- search ---
 
     def search(self, query, session):
-        print("[xiaoshuopu.com] Search requires JS execution and is not supported.")
-        print("Please provide the novel index URL directly.")
-        print("Example: https://www.xiaoshuopu.com/xiaoshuo/69/69516/")
+        print("[xiaoshuopu.com] Search API has anti-bot protection and is not available.")
+        print("  Please provide the novel index URL directly:")
+        print("  Example: https://www.xiaoshuopu.com/xiaoshuo/69/69516/")
         return []
 
     # --- novel info ---
