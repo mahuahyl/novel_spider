@@ -33,6 +33,11 @@ def get_all_sites():
     return [cls() for cls in _registry.values()]
 
 
+def get_searchable_sites():
+    """Return list of site adapter instances that support search."""
+    return [cls() for cls in _registry.values() if cls.searchable]
+
+
 # Import adapters to trigger registration
 import sites.biquuge  # noqa: E402, F401
 import sites.xiaoshuopu  # noqa: E402, F401

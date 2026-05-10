@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from scraper import create_session
-from sites import get_site, get_all_sites, list_sites
+from sites import get_site, get_searchable_sites
 from downloader import download_chapters
 
 
@@ -10,12 +10,18 @@ def cmd_search(args):
     session = create_session()
 
     if args.site:
-        # Search a specific site
         site = get_site(f"https://{args.site}/")
+        if not site.searchable:
+            print(f"[{site.domain}] This site does not support search.")
+            print("  Please provide the novel index page URL directly.")
+            return
         sites_to_search = [site]
     else:
-        # Search all sites
-        sites_to_search = get_all_sites()
+        sites_to_search = get_searchable_sites()
+
+    if not sites_to_search:
+        print("No searchable sites available.")
+        return
 
     all_results = []
     for site in sites_to_search:
@@ -90,7 +96,7 @@ def main():
     p_search = sub.add_parser("search", help="Search for a novel by name")
     p_search.add_argument("query", help="Novel name or keyword")
     p_search.add_argument("-s", "--site", default=None,
-                          help=f"Search a specific site (default: all). Supported: {', '.join(list_sites())}")
+                          help="Search a specific site (default: all searchable). Domain only, e.g. biquuge.com")
     p_search.set_defaults(func=cmd_search)
 
     p_list = sub.add_parser("list", help="List all chapters of a novel")

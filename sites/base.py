@@ -7,6 +7,9 @@ class SiteAdapter(ABC):
     # Site domain (e.g. "biquuge.com"), used for URL matching
     domain: str = ""
 
+    # Whether this site supports search
+    searchable: bool = False
+
     @abstractmethod
     def search(self, query, session):
         """Search novels by keyword.

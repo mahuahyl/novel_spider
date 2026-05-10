@@ -21,6 +21,7 @@ class ScraperError(Exception):
 @register_site
 class BiquugeAdapter(SiteAdapter):
     domain = "biquuge.com"
+    searchable = True
 
     # --- search ---
 

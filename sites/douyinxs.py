@@ -16,6 +16,7 @@ class ParseError(Exception):
 @register_site
 class DouyinxsAdapter(SiteAdapter):
     domain = "douyinxs.com"
+    searchable = True
 
     def search(self, query, session):
         if len(query) < 2:
