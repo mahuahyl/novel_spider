@@ -5,11 +5,11 @@ from utils import retry
 
 
 class ScraperError(Exception):
-    """Raised on unrecoverable HTTP or network errors."""
+    """不可恢复的 HTTP 或网络错误。"""
 
 
 def create_session(config=None):
-    """Create a requests.Session with browser-like headers."""
+    """创建带浏览器请求头的 requests.Session。"""
     if config is None:
         config = Config()
     session = requests.Session()
@@ -24,11 +24,11 @@ def create_session(config=None):
 
 @retry(max_attempts=3, backoff_factor=1.0)
 def fetch_page(url, session):
-    """Fetch a single page, return HTML text. Raises ScraperError on failure."""
+    """获取单个页面，返回 HTML 文本。失败时抛出 ScraperError。"""
     try:
         resp = session.get(url)
         resp.raise_for_status()
         resp.encoding = "utf-8"
         return resp.text
     except requests.RequestException as e:
-        raise ScraperError(f"Failed to fetch {url}: {e}")
+        raise ScraperError(f"获取页面失败 {url}：{e}")

@@ -20,7 +20,7 @@ class DouyinxsAdapter(SiteAdapter):
 
     def search(self, query, session):
         if len(query) < 2:
-            print("[douyinxs.com] Search query too short.")
+            print("[douyinxs.com] 搜索关键词过短。")
             return []
         encoded = urllib.parse.quote(query)
         url = f"https://www.douyinxs.com/search/?searchkey={encoded}"
@@ -28,7 +28,7 @@ class DouyinxsAdapter(SiteAdapter):
             resp = _fetch_page(url, session)
             return _parse_search_results(resp.text)
         except Exception as e:
-            print(f"[douyinxs.com] Search error: {e}")
+            print(f"[douyinxs.com] 搜索出错：{e}")
             return []
 
     def get_novel_info(self, novel_url, session):
@@ -38,13 +38,13 @@ class DouyinxsAdapter(SiteAdapter):
         title = _extract_meta(tree, "og:novel:book_name")
         if not title:
             h1 = tree.xpath("//div[@id='info']/h1/text()")
-            title = h1[0].strip() if h1 else "Unknown"
+            title = h1[0].strip() if h1 else "未知"
 
         author = _extract_meta(tree, "og:novel:author") or ""
 
         chapters = _parse_chapter_list(tree, novel_url)
 
-        # Handle pagination (select#indexselect)
+        # 处理分页（select#indexselect）
         total_pages = _parse_total_pages(tree)
         if total_pages > 1:
             base = novel_url.rstrip("/")
@@ -69,7 +69,7 @@ class DouyinxsAdapter(SiteAdapter):
 
 
 # ---------------------------------------------------------------------------
-# HTTP helpers
+# HTTP 辅助函数
 # ---------------------------------------------------------------------------
 
 @retry(max_attempts=3, backoff_factor=1.0)
@@ -88,7 +88,7 @@ def _extract_meta(tree, prop):
 
 
 # ---------------------------------------------------------------------------
-# Search
+# 搜索
 # ---------------------------------------------------------------------------
 
 def _parse_search_results(html_text):
@@ -120,7 +120,7 @@ def _parse_search_results(html_text):
 
 
 # ---------------------------------------------------------------------------
-# Chapter list
+# 章节列表
 # ---------------------------------------------------------------------------
 
 def _parse_chapter_list(tree, novel_url):
@@ -129,7 +129,7 @@ def _parse_chapter_list(tree, novel_url):
 
     chapters = []
 
-    # Find the "正文" section to skip "最新章节" duplicates
+    # 查找"正文"部分，跳过"最新章节"的重复内容
     dts = tree.xpath("//div[@id='list']//dl/dt")
     body_section = None
     for dt in dts:
@@ -138,7 +138,7 @@ def _parse_chapter_list(tree, novel_url):
             break
 
     if body_section is not None:
-        # Collect all <dd> siblings after the "正文" <dt>
+        # 收集"正文" <dt> 之后的所有 <dd> 兄弟节点
         links = []
         for elem in body_section.itersiblings():
             if elem.tag == "dt":
@@ -148,7 +148,7 @@ def _parse_chapter_list(tree, novel_url):
                 if a:
                     links.append(a[0])
     else:
-        # Fallback: all dd/a links
+        # 兜底方案：所有 dd/a 链接
         links = tree.xpath("//div[@id='list']//dl//dd/a[@href]")
 
     for link in links:
@@ -166,7 +166,7 @@ def _parse_chapter_list(tree, novel_url):
 
 
 # ---------------------------------------------------------------------------
-# Pagination
+# 分页
 # ---------------------------------------------------------------------------
 
 def _parse_total_pages(tree):
@@ -185,7 +185,7 @@ def _parse_total_pages(tree):
 
 
 # ---------------------------------------------------------------------------
-# Chapter content
+# 章节内容
 # ---------------------------------------------------------------------------
 
 def _parse_chapter_body(html_text):
@@ -196,7 +196,7 @@ def _parse_chapter_body(html_text):
         content_el = tree.xpath("//div[@id='content']")
 
     if not content_el:
-        raise ParseError("Could not find chapter content")
+        raise ParseError("无法找到章节内容")
 
     raw_text = content_el[0].text_content()
     lines = [line.strip() for line in raw_text.split("\n") if line.strip()]

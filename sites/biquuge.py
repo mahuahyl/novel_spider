@@ -23,29 +23,29 @@ class BiquugeAdapter(SiteAdapter):
     domain = "biquuge.com"
     searchable = True
 
-    # --- search ---
+    # --- 搜索 ---
 
     def search(self, query, session):
         return _search_novels(query, session)
 
-    # --- novel info ---
+    # --- 小说信息 ---
 
     def get_novel_info(self, novel_url, session):
         return _get_novel_info(novel_url, session)
 
-    # --- chapter content ---
+    # --- 章节内容 ---
 
     def get_chapter_content(self, chapter_url, session, delay=0):
         return _fetch_chapter_all_pages(chapter_url, session, delay)
 
 
 # ---------------------------------------------------------------------------
-# HTTP helpers
+# HTTP 辅助函数
 # ---------------------------------------------------------------------------
 
 @retry(max_attempts=3, backoff_factor=1.0)
 def _fetch_page(url, session=None):
-    """Fetch a page and return the response object."""
+    """获取页面并返回响应对象。"""
     if session is None:
         session = requests.Session()
     resp = session.get(url, timeout=30)
@@ -55,11 +55,11 @@ def _fetch_page(url, session=None):
 
 
 # ---------------------------------------------------------------------------
-# Search
+# 搜索
 # ---------------------------------------------------------------------------
 
 def _search_novels(query, session):
-    """Search novels on biquuge.com, return list of {title, author, url}."""
+    """在 biquuge.com 搜索小说，返回 {title, author, url} 列表。"""
     import urllib.parse
 
     encoded = urllib.parse.quote(query)
@@ -78,7 +78,7 @@ def _search_novels(query, session):
         except Exception:
             continue
 
-    # Try POST if GET failed
+    # 如果 GET 失败，尝试 POST
     try:
         resp = session.post(
             "https://www.biquuge.com/search.html",
@@ -96,20 +96,20 @@ def _search_novels(query, session):
 
 
 def _parse_search_results(tree):
-    """Extract search results from HTML tree."""
+    """从 HTML 树中提取搜索结果。"""
     results = []
 
-    # Strategy 1: dl blocks with dd > h3 > a (current biquuge layout)
+    # 方案 1：dl 块中的 dd > h3 > a（当前 biquuge 布局）
     dl_items = tree.xpath("//dl")
     for dl in dl_items:
-        # Title link is in dd > h3 > a
+        # 标题链接位于 dd > h3 > a 中
         title_links = dl.xpath(".//dd/h3/a[@href]")
         if not title_links:
             continue
         link = title_links[0]
         href = link.get("href", "")
         title = link.text_content().strip()
-        # Strip category prefix like [网游], [玄幻]
+        # 去掉分类前缀，如 [网游]、[玄幻]
         title = re.sub(r'^\[.*?\]', '', title).strip()
         if not title or not href:
             continue
@@ -117,7 +117,7 @@ def _parse_search_results(tree):
         if not href.startswith("http"):
             href = "https://www.biquuge.com" + href
 
-        # Author is in dd.book_other > span
+        # 作者位于 dd.book_other > span 中
         author = ""
         author_spans = dl.xpath(".//dd[@class='book_other'][contains(text(),'作者')]/span")
         if author_spans:
@@ -131,7 +131,7 @@ def _parse_search_results(tree):
     if results:
         return results
 
-    # Strategy 2: div#main links
+    # 方案 2：div#main 链接
     items = tree.xpath("//div[@id='main']//a[@href]")
     for item in items:
         href = item.get("href", "")
@@ -149,7 +149,7 @@ def _parse_search_results(tree):
     if results:
         return results
 
-    # Strategy 3: table rows
+    # 方案 3：表格行
     rows = tree.xpath("//table//tr")
     for row in rows:
         cells = row.xpath(".//td")
@@ -175,26 +175,26 @@ def _parse_search_results(tree):
 
 
 # ---------------------------------------------------------------------------
-# Novel info
+# 小说信息
 # ---------------------------------------------------------------------------
 
 def _get_novel_info(novel_url, session):
-    """Fetch novel index page and return {title, author, chapters}."""
+    """获取小说目录页，返回 {title, author, chapters}。"""
     resp = _fetch_page(novel_url, session)
     tree = lxml_html.fromstring(resp.text)
 
-    # Parse metadata
+    # 解析元数据
     title = _extract_meta(tree, "og:novel:book_name")
     if not title:
         h1 = tree.xpath("//h1/text()")
-        title = h1[0].strip() if h1 else "Unknown"
+        title = h1[0].strip() if h1 else "未知"
 
     author = _extract_meta(tree, "og:novel:author") or ""
 
-    # Parse chapter list from first page
+    # 从第一页解析章节列表
     chapters = _parse_chapter_list(tree, novel_url)
 
-    # Handle pagination (index_N.html)
+    # 处理分页（index_N.html）
     total_pages = _parse_total_pages(tree)
     if total_pages > 1:
         base_url = novel_url.rstrip("/")
@@ -213,13 +213,13 @@ def _get_novel_info(novel_url, session):
 
 
 def _extract_meta(tree, prop):
-    """Extract content from a meta[property] tag."""
+    """从 meta[property] 标签提取内容。"""
     el = tree.xpath(f"//meta[@property='{prop}']/@content")
     return el[0].strip() if el else None
 
 
 def _parse_chapter_list(tree, novel_url):
-    """Extract chapter links from the index page tree."""
+    """从目录页 HTML 树中提取章节链接。"""
     import urllib.parse
 
     base = urllib.parse.urlparse(novel_url)
@@ -227,19 +227,19 @@ def _parse_chapter_list(tree, novel_url):
 
     chapters = []
 
-    # Strategy 1: div.book_list2 (full chapter list) > ul > li > a
+    # 方案 1：div.book_list2（完整章节列表） > ul > li > a
     links = tree.xpath("//div[contains(@class,'book_list2')]//ul//li/a[@href]")
 
     if not links:
-        # Fallback: any div.book_list
+        # 兜底方案：任意 div.book_list
         links = tree.xpath("//div[contains(@class,'book_list')]//ul//li/a[@href]")
 
     if not links:
-        # Strategy 2: dd/a (older layout)
+        # 方案 2：dd/a（旧版布局）
         links = tree.xpath("//dd/a[@href]")
 
     if not links:
-        # Strategy 3: div#list (fallback)
+        # 方案 3：div#list（兜底）
         links = tree.xpath("//div[@id='list']//a[@href]")
 
     for link in links:
@@ -259,8 +259,8 @@ def _parse_chapter_list(tree, novel_url):
 
 
 def _parse_total_pages(tree):
-    """Determine how many pages the chapter list spans."""
-    # Strategy 1: Look for "1/N" text in pagination (current biquuge)
+    """确定章节列表的分页总数。"""
+    # 方案 1：在分页中查找 "1/N" 文本（当前 biquuge）
     page_info = tree.xpath(
         "//ul[contains(@class,'pagination')]//li[contains(@class,'disabled')]/a[contains(@class,'page-link')]/text()"
     )
@@ -269,7 +269,7 @@ def _parse_total_pages(tree):
         if match:
             return int(match.group(1))
 
-    # Strategy 2: Extract from page link hrefs
+    # 方案 2：从页面链接 href 中提取
     page_links = tree.xpath("//ul[contains(@class,'pagination')]//a[contains(@class,'page-link')][@href]/@href")
     max_page = 1
     for href in page_links:
@@ -282,7 +282,7 @@ def _parse_total_pages(tree):
     if max_page > 1:
         return max_page
 
-    # Strategy 3: Old layout with div.page
+    # 方案 3：旧版布局，使用 div.page
     page_links = tree.xpath("//div[@class='page']//a[@href]")
     for link in page_links:
         href = link.get("href", "")
@@ -296,11 +296,11 @@ def _parse_total_pages(tree):
 
 
 # ---------------------------------------------------------------------------
-# Chapter content
+# 章节内容
 # ---------------------------------------------------------------------------
 
 def _fetch_chapter_all_pages(first_page_url, session, delay=0):
-    """Fetch all pages of a chapter and return combined text."""
+    """获取章节的所有分页并返回合并后的文本。"""
     url = first_page_url
     all_lines = []
     page_num = 1
@@ -331,9 +331,9 @@ def _fetch_chapter_all_pages(first_page_url, session, delay=0):
 
 
 def _parse_chapter_body(html_text):
-    """Extract chapter text from HTML.
+    """从 HTML 中提取章节正文。
 
-    Returns (text, total_pages) where total_pages is None for single-page chapters.
+    返回 (text, total_pages)，其中 total_pages 在单页章节时为 None。
     """
     tree = lxml_html.fromstring(html_text)
 
@@ -348,7 +348,7 @@ def _parse_chapter_body(html_text):
         content_elements = tree.xpath("//div[contains(@class, 'txt')]")
 
     if not content_elements:
-        raise ParseError("Could not find chapter content in the page")
+        raise ParseError("无法找到章节内容")
 
     content_el = content_elements[0]
     raw_text = content_el.text_content()

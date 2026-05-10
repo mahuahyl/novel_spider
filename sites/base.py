@@ -2,31 +2,31 @@ from abc import ABC, abstractmethod
 
 
 class SiteAdapter(ABC):
-    """Abstract base class for novel site adapters."""
+    """小说站点适配器抽象基类。"""
 
-    # Site domain (e.g. "biquuge.com"), used for URL matching
+    # 站点域名（如 "biquuge.com"），用于 URL 匹配
     domain: str = ""
 
-    # Whether this site supports search
+    # 是否支持搜索
     searchable: bool = False
 
     @abstractmethod
     def search(self, query, session):
-        """Search novels by keyword.
+        """按关键词搜索小说。
 
-        Returns list of dicts: [{'title': str, 'author': str, 'url': str}, ...]
+        返回字典列表：[{'title': str, 'author': str, 'url': str}, ...]
         """
 
     @abstractmethod
     def get_novel_info(self, novel_url, session):
-        """Get novel metadata and full chapter list.
+        """获取小说元数据和完整章节列表。
 
-        Returns dict: {'title': str, 'author': str, 'chapters': [{'title': str, 'url': str}]}
+        返回字典：{'title': str, 'author': str, 'chapters': [{'title': str, 'url': str}]}
         """
 
     @abstractmethod
     def get_chapter_content(self, chapter_url, session, delay=0):
-        """Fetch a single chapter's text content.
+        """获取单章正文内容。
 
-        Returns plain text string.
+        返回纯文本字符串。
         """

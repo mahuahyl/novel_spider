@@ -26,19 +26,19 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
 
     session = create_session(config)
 
-    # Match site adapter
+    # 匹配站点适配器
     try:
         site = get_site(novel_url)
     except ValueError as e:
-        print(f"Error: {e}")
+        print(f"错误：{e}")
         return 0, 0
 
-    # 1. Get novel info (chapter list)
-    print(f"Fetching novel info from: {novel_url}")
+    # 1. 获取小说信息（章节列表）
+    print(f"正在获取小说信息：{novel_url}")
     try:
         info = site.get_novel_info(novel_url, session)
     except Exception as e:
-        print(f"Error fetching novel info: {e}")
+        print(f"获取小说信息失败：{e}")
         return 0, 0
 
     novel_title = info["title"]
@@ -46,11 +46,11 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
     total_chapters = len(chapters)
 
     if total_chapters == 0:
-        print("No chapters found.")
+        print("未找到章节。")
         return 0, 0
 
-    print(f"Novel: {novel_title}")
-    print(f"Total chapters: {total_chapters}")
+    print(f"小说：{novel_title}")
+    print(f"总章节数：{total_chapters}")
 
     # 2. 校验章节范围
     if end == 0:
@@ -60,20 +60,20 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
     if end > total_chapters:
         end = total_chapters
     if start > end:
-        print(f"Invalid range: start ({start}) > end ({end})")
+        print(f"无效的范围：起始（{start}）> 结束（{end}）")
         return 0, 0
 
-    print(f"Downloading chapters {start} to {end} ({end - start + 1} chapters)")
+    print(f"正在下载第 {start} 到 {end} 章（共 {end - start + 1} 章）")
 
     # 3. 创建输出目录
     novel_dir = os.path.join(output_dir, sanitize_filename(novel_title))
     ensure_dir(novel_dir)
 
     if dry_run:
-        print(f"\n[Dry-run] Would save to: {novel_dir}")
+        print(f"\n[预览] 将保存到：{novel_dir}")
         for i in range(start - 1, end):
             ch = chapters[i]
-            print(f"  Chapter {i + 1}: {ch['title']}")
+            print(f"  第 {i + 1} 章：{ch['title']}")
         return end - start + 1, 0
 
     # 4. 逐章下载
@@ -100,20 +100,20 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
             # 断点续传：跳过已存在的文件
             if resume and os.path.exists(filepath):
                 if verbose:
-                    print(f"[{ch_num}/{total_chapters}] Skipping (exists): {ch_title}")
+                    print(f"[{ch_num}/{total_chapters}] 跳过（已存在）：{ch_title}")
                 downloaded += 1
                 continue
 
             if verbose:
-                print(f"[{ch_num}/{total}] Downloading: {ch_title}")
+                print(f"[{ch_num}/{total}] 正在下载：{ch_title}")
 
             try:
                 content = site.get_chapter_content(ch_url, session, delay=0)
             except Exception as e:
-                print(f"[{ch_num}/{total}] FAILED: {ch_title} — {e}")
+                print(f"[{ch_num}/{total}] 失败：{ch_title} — {e}")
                 # 写入错误占位文件
                 with open(filepath, "w", encoding="utf-8") as f:
-                    f.write(f"[Download failed: {e}]\n")
+                    f.write(f"[下载失败：{e}]\n")
                 failed += 1
                 continue
 
@@ -131,8 +131,8 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
                 time.sleep(delay)
 
     except KeyboardInterrupt:
-        print(f"\n\nInterrupted. Downloaded: {downloaded}, Failed: {failed}, "
-              f"Remaining: {total - downloaded - failed}")
+        print(f"\n\n已中断。已下载：{downloaded}，失败：{failed}，"
+              f"剩余：{total - downloaded - failed}")
         return downloaded, failed
 
     if not verbose:

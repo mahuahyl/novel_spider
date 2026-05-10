@@ -17,34 +17,34 @@ class ParseError(Exception):
 class XiaoshuopuAdapter(SiteAdapter):
     domain = "xiaoshuopu.com"
 
-    # --- search ---
+    # --- 搜索 ---
 
     def search(self, query, session):
-        print("[xiaoshuopu.com] Search API has anti-bot protection and is not available.")
-        print("  Please provide the novel index URL directly:")
-        print("  Example: https://www.xiaoshuopu.com/xiaoshuo/69/69516/")
+        print("[xiaoshuopu.com] 搜索接口有反爬虫保护，不可用。")
+        print("  请直接提供小说目录页 URL：")
+        print("  示例：https://www.xiaoshuopu.com/xiaoshuo/69/69516/")
         return []
 
-    # --- novel info ---
+    # --- 小说信息 ---
 
     def get_novel_info(self, novel_url, session):
         resp = _fetch_page(novel_url, session)
         tree = lxml_html.fromstring(resp.text)
 
-        # Metadata from og tags
+        # 从 og 标签获取元数据
         title = _extract_meta(tree, "og:novel:book_name")
         if not title:
             h1 = tree.xpath("//h1/text()")
-            title = h1[0].strip() if h1 else "Unknown"
+            title = h1[0].strip() if h1 else "未知"
 
         author = _extract_meta(tree, "og:novel:author") or ""
 
-        # Chapter list: table[@id='at'] > td.L > a
+        # 章节列表：table[@id='at'] > td.L > a
         chapters = _parse_chapter_list(tree, novel_url)
 
         return {"title": title, "author": author, "chapters": chapters}
 
-    # --- chapter content ---
+    # --- 章节内容 ---
 
     def get_chapter_content(self, chapter_url, session, delay=0):
         import time
@@ -57,7 +57,7 @@ class XiaoshuopuAdapter(SiteAdapter):
 
 
 # ---------------------------------------------------------------------------
-# HTTP helpers
+# HTTP 辅助函数
 # ---------------------------------------------------------------------------
 
 @retry(max_attempts=3, backoff_factor=1.0)
@@ -76,7 +76,7 @@ def _extract_meta(tree, prop):
 
 
 # ---------------------------------------------------------------------------
-# Chapter list
+# 章节列表
 # ---------------------------------------------------------------------------
 
 def _parse_chapter_list(tree, novel_url):
@@ -85,11 +85,11 @@ def _parse_chapter_list(tree, novel_url):
 
     chapters = []
 
-    # xiaoshuopu uses table[@id='at'] with td.L > a
+    # xiaoshuopu 使用 table[@id='at'] 配合 td.L > a
     links = tree.xpath("//table[@id='at']//td[@class='L']/a[@href]")
 
     if not links:
-        # Fallback: any dd/a pattern
+        # 兜底方案：任意 dd/a 模式
         links = tree.xpath("//dd/a[@href]")
 
     for link in links:
@@ -109,23 +109,23 @@ def _parse_chapter_list(tree, novel_url):
 
 
 # ---------------------------------------------------------------------------
-# Chapter content
+# 章节内容
 # ---------------------------------------------------------------------------
 
 def _parse_chapter_body(html_text):
     tree = lxml_html.fromstring(html_text)
 
-    # xiaoshuopu uses div#htmlContent
+    # xiaoshuopu 使用 div#htmlContent
     content_elements = tree.xpath("//div[@id='htmlContent']")
 
     if not content_elements:
-        # Fallback
+        # 兜底方案
         content_elements = tree.xpath(
             "//div[@id='content' or @class='content' or @id='chaptercontent']"
         )
 
     if not content_elements:
-        raise ParseError("Could not find chapter content in the page")
+        raise ParseError("无法找到章节内容")
 
     content_el = content_elements[0]
     raw_text = content_el.text_content()
