@@ -2,25 +2,41 @@ import argparse
 import sys
 
 from scraper import create_session
-from sites import get_site, list_sites
+from sites import get_site, get_all_sites, list_sites
 from downloader import download_chapters
 
 
 def cmd_search(args):
-    print(f"Searching for: {args.query} (site: {args.site})")
-    site = get_site(f"https://{args.site}/")
     session = create_session()
-    results = site.search(args.query, session)
 
-    if not results:
-        print("No results found, or search is unavailable.")
+    if args.site:
+        # Search a specific site
+        site = get_site(f"https://{args.site}/")
+        sites_to_search = [site]
+    else:
+        # Search all sites
+        sites_to_search = get_all_sites()
+
+    all_results = []
+    for site in sites_to_search:
+        print(f"Searching {site.domain} for: {args.query}")
+        try:
+            results = site.search(args.query, session)
+            for r in results:
+                r["site"] = site.domain
+            all_results.extend(results)
+        except Exception as e:
+            print(f"  {site.domain}: error — {e}")
+
+    if not all_results:
+        print("\nNo results found.")
         print("Try providing the novel index page URL directly: python cli.py list <URL>")
         return
 
     print()
-    for i, novel in enumerate(results, 1):
+    for i, novel in enumerate(all_results, 1):
         author_str = f" — {novel['author']}" if novel['author'] else ""
-        print(f"  {i}. {novel['title']}{author_str}")
+        print(f"  {i}. [{novel['site']}] {novel['title']}{author_str}")
         print(f"     {novel['url']}")
     print()
     print("Use 'python cli.py list <URL>' to view chapters, or")
@@ -73,8 +89,8 @@ def main():
 
     p_search = sub.add_parser("search", help="Search for a novel by name")
     p_search.add_argument("query", help="Novel name or keyword")
-    p_search.add_argument("-s", "--site", default="biquuge.com",
-                          help=f"Site to search (default: biquuge.com). Supported: {', '.join(list_sites())}")
+    p_search.add_argument("-s", "--site", default=None,
+                          help=f"Search a specific site (default: all). Supported: {', '.join(list_sites())}")
     p_search.set_defaults(func=cmd_search)
 
     p_list = sub.add_parser("list", help="List all chapters of a novel")

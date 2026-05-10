@@ -28,6 +28,11 @@ def list_sites():
     return list(_registry.keys())
 
 
+def get_all_sites():
+    """Return list of all registered site adapter instances."""
+    return [cls() for cls in _registry.values()]
+
+
 # Import adapters to trigger registration
 import sites.biquuge  # noqa: E402, F401
 import sites.xiaoshuopu  # noqa: E402, F401
