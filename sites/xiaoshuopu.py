@@ -4,9 +4,9 @@ import urllib.parse
 import requests
 from lxml import html as lxml_html
 
-from ..utils import retry
-from . import register_site
-from .base import SiteAdapter
+from utils import retry
+from sites import register_site
+from sites.base import SiteAdapter
 
 
 class ParseError(Exception):

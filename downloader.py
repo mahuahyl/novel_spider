@@ -6,8 +6,8 @@ import time
 from pathlib import Path
 
 from config import Config
-from scraper import create_session, get_novel_info, fetch_chapter_all_pages, ScraperError
-from parser import ParseError
+from scraper import create_session, ScraperError
+from sites import get_site
 from utils import sanitize_filename, ensure_dir
 
 
@@ -26,11 +26,18 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
 
     session = create_session(config)
 
+    # Match site adapter
+    try:
+        site = get_site(novel_url)
+    except ValueError as e:
+        print(f"Error: {e}")
+        return 0, 0
+
     # 1. Get novel info (chapter list)
     print(f"Fetching novel info from: {novel_url}")
     try:
-        info = get_novel_info(novel_url, session)
-    except (ScraperError, ParseError) as e:
+        info = site.get_novel_info(novel_url, session)
+    except Exception as e:
         print(f"Error fetching novel info: {e}")
         return 0, 0
 
@@ -101,8 +108,8 @@ def download_chapters(novel_url, start=1, end=0, output_dir=None, delay=1.0,
                 print(f"[{ch_num}/{total}] Downloading: {ch_title}")
 
             try:
-                content = fetch_chapter_all_pages(ch_url, session, delay=0)
-            except (ScraperError, ParseError) as e:
+                content = site.get_chapter_content(ch_url, session, delay=0)
+            except Exception as e:
                 print(f"[{ch_num}/{total}] FAILED: {ch_title} — {e}")
                 # Write error placeholder
                 with open(filepath, "w", encoding="utf-8") as f:

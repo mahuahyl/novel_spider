@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 
-from .base import SiteAdapter
+from sites.base import SiteAdapter
 
 _registry = {}
 
@@ -29,4 +29,5 @@ def list_sites():
 
 
 # Import adapters to trigger registration
-from . import biquuge, xiaoshuopu  # noqa: E402, F401
+import sites.biquuge  # noqa: E402, F401
+import sites.xiaoshuopu  # noqa: E402, F401

@@ -1,13 +1,16 @@
 import argparse
 import sys
 
-from scraper import create_session, search_novels, get_novel_info
+from scraper import create_session
+from sites import get_site, list_sites
 from downloader import download_chapters
 
 
 def cmd_search(args):
-    print(f"Searching for: {args.query}")
-    results = search_novels(args.query)
+    print(f"Searching for: {args.query} (site: {args.site})")
+    site = get_site(f"https://{args.site}/")
+    session = create_session()
+    results = site.search(args.query, session)
 
     if not results:
         print("No results found, or search is unavailable.")
@@ -29,7 +32,8 @@ def cmd_list(args):
     session = create_session()
 
     try:
-        info = get_novel_info(args.url, session)
+        site = get_site(args.url)
+        info = site.get_novel_info(args.url, session)
     except Exception as e:
         print(f"Error: {e}")
         return
@@ -69,6 +73,8 @@ def main():
 
     p_search = sub.add_parser("search", help="Search for a novel by name")
     p_search.add_argument("query", help="Novel name or keyword")
+    p_search.add_argument("-s", "--site", default="biquuge.com",
+                          help=f"Site to search (default: biquuge.com). Supported: {', '.join(list_sites())}")
     p_search.set_defaults(func=cmd_search)
 
     p_list = sub.add_parser("list", help="List all chapters of a novel")

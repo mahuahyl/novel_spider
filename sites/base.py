@@ -5,7 +5,7 @@ class SiteAdapter(ABC):
     """Abstract base class for novel site adapters."""
 
     # Site domain (e.g. "biquuge.com"), used for URL matching
-    domain: str
+    domain: str = ""
 
     @abstractmethod
     def search(self, query, session):
