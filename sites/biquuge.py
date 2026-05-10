@@ -98,27 +98,34 @@ def _parse_search_results(tree):
     """Extract search results from HTML tree."""
     results = []
 
-    # Strategy 1: dl > dt > a pattern
-    items = tree.xpath("//dl/dt")
-    for item in items:
-        link = item.xpath(".//a[@href]")
-        if not link:
+    # Strategy 1: dl blocks with dd > h3 > a (current biquuge layout)
+    dl_items = tree.xpath("//dl")
+    for dl in dl_items:
+        # Title link is in dd > h3 > a
+        title_links = dl.xpath(".//dd/h3/a[@href]")
+        if not title_links:
             continue
-        link = link[0]
+        link = title_links[0]
         href = link.get("href", "")
         title = link.text_content().strip()
-        if not title:
+        # Strip category prefix like [网游], [玄幻]
+        title = re.sub(r'^\[.*?\]', '', title).strip()
+        if not title or not href:
             continue
 
         if not href.startswith("http"):
             href = "https://www.biquuge.com" + href
 
+        # Author is in dd.book_other > span
         author = ""
-        author_el = item.xpath(".//a[contains(@href, 'author')]")
-        if author_el:
-            author = author_el[0].text_content().strip()
+        author_spans = dl.xpath(".//dd[@class='book_other'][contains(text(),'作者')]/span")
+        if author_spans:
+            author = author_spans[0].text_content().strip()
 
         results.append({"title": title, "author": author, "url": href})
+
+    if results:
+        return results
 
     if results:
         return results
@@ -218,9 +225,20 @@ def _parse_chapter_list(tree, novel_url):
     base_domain = f"{base.scheme}://{base.netloc}"
 
     chapters = []
-    links = tree.xpath("//dd/a[@href]")
+
+    # Strategy 1: div.book_list2 (full chapter list) > ul > li > a
+    links = tree.xpath("//div[contains(@class,'book_list2')]//ul//li/a[@href]")
 
     if not links:
+        # Fallback: any div.book_list
+        links = tree.xpath("//div[contains(@class,'book_list')]//ul//li/a[@href]")
+
+    if not links:
+        # Strategy 2: dd/a (older layout)
+        links = tree.xpath("//dd/a[@href]")
+
+    if not links:
+        # Strategy 3: div#list (fallback)
         links = tree.xpath("//div[@id='list']//a[@href]")
 
     for link in links:
@@ -241,9 +259,30 @@ def _parse_chapter_list(tree, novel_url):
 
 def _parse_total_pages(tree):
     """Determine how many pages the chapter list spans."""
-    page_links = tree.xpath("//div[@class='page']//a[@href]")
-    max_page = 1
+    # Strategy 1: Look for "1/N" text in pagination (current biquuge)
+    page_info = tree.xpath(
+        "//ul[contains(@class,'pagination')]//li[contains(@class,'disabled')]/a[contains(@class,'page-link')]/text()"
+    )
+    for text in page_info:
+        match = re.search(r"\d+/(\d+)", text)
+        if match:
+            return int(match.group(1))
 
+    # Strategy 2: Extract from page link hrefs
+    page_links = tree.xpath("//ul[contains(@class,'pagination')]//a[contains(@class,'page-link')][@href]/@href")
+    max_page = 1
+    for href in page_links:
+        match = re.search(r"index_(\d+)\.html", href)
+        if match:
+            page_num = int(match.group(1))
+            if page_num > max_page:
+                max_page = page_num
+
+    if max_page > 1:
+        return max_page
+
+    # Strategy 3: Old layout with div.page
+    page_links = tree.xpath("//div[@class='page']//a[@href]")
     for link in page_links:
         href = link.get("href", "")
         match = re.search(r"index_(\d+)\.html", href)
@@ -251,15 +290,6 @@ def _parse_total_pages(tree):
             page_num = int(match.group(1))
             if page_num > max_page:
                 max_page = page_num
-
-    if max_page == 1:
-        last_links = tree.xpath(
-            "//a[contains(@href, 'index_') and contains(text(), '末页')]/@href"
-        )
-        if last_links:
-            match = re.search(r"index_(\d+)\.html", last_links[0])
-            if match:
-                max_page = int(match.group(1))
 
     return max_page
 

@@ -12,7 +12,8 @@
       "Bash(git commit -m ' *)",
       "Bash(python *)",
       "Bash(curl -s -I -A \"Mozilla/5.0\" \"https://www.xiaoshuopu.com/xiaoshuo/69/69516/\")",
-      "Bash(rm -rf novels/*)"
+      "Bash(rm -rf novels/*)",
+      "Bash(curl *)"
     ]
   }
 }
