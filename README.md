@@ -2,6 +2,27 @@
 
 这个工具可以从多个小说网站下载章节，保存成 txt 文件到电脑上。
 
+## 使用方式
+
+本工具提供两种使用方式：
+
+| 方式 | 说明 | 适合人群 |
+|------|------|----------|
+| **GUI 图形界面** | 启动一个窗口程序，搜索、选章节、下载全在窗口里完成 | 不习惯命令行的用户 |
+| **命令行** | 在命令提示符中输入命令来操作 | 习惯命令行的用户 |
+
+### GUI 模式（推荐新手）
+
+直接双击运行或输入：
+
+```
+python main.py
+```
+
+会弹出一个窗口，在窗口里搜索小说 → 获取章节 → 下载，全部用鼠标操作即可。具体操作说明见窗口内各区域的提示。
+
+---
+
 ## 支持的网站
 
 ### 支持搜索的网站
@@ -24,9 +45,13 @@
 
 ---
 
-## 第一次使用（只需要做一次）
+## 命令行使用说明
 
-### 1. 确认电脑上有 Python
+以下内容适用于命令行模式。如果你使用 GUI 模式（`python main.py`），不需要看这部分。
+
+### 第一次使用（只需要做一次）
+
+#### 1. 确认电脑上有 Python
 
 打开命令提示符（按 `Win+R`，输入 `cmd`，回车），输入：
 
@@ -43,7 +68,7 @@ python --version
 - 安装时**一定要勾选** "Add Python to PATH"
 - 安装完后重新打开命令提示符
 
-### 2. 下载这个项目
+#### 2. 下载这个项目
 
 点击 GitHub 上的 Code → Download ZIP，解压到任意文件夹。
 
@@ -53,7 +78,7 @@ python --version
 git clone https://github.com/mahuahyl/novel_spider.git
 ```
 
-### 3. 安装依赖
+#### 3. 安装依赖
 
 打开命令提示符，进入项目文件夹：
 
@@ -71,11 +96,11 @@ pip install requests lxml
 
 ---
 
-## 使用方法
+### 使用方法
 
 以后每次使用，先打开命令提示符，进入项目文件夹，然后执行下面的命令。
 
-### 第一步：搜索小说（仅限支持搜索的网站）
+#### 第一步：搜索小说（仅限支持搜索的网站）
 
 ```
 python cli.py search 小说名
@@ -96,22 +121,22 @@ python cli.py search 天才俱乐部 -s biquuge.com
 你会看到类似这样的结果：
 
 ```
-Searching biquuge.com for: 天才俱乐部
+正在搜索 biquuge.com：天才俱乐部
 
   1. [biquuge.com] 天才俱乐部 — 浅浅与蝉
      https://www.biquuge.com/0/112/
 
-Use 'python cli.py list <URL>' to view chapters, or
-    'python cli.py download <URL>' to download.
+使用 'python cli.py list <URL>' 查看章节列表，
+    或使用 'python cli.py download <URL>' 下载。
 ```
 
 **复制这行网址**（选中后按 Ctrl+C），下一步要用。
 
-#### 不支持搜索的网站怎么办？
+##### 不支持搜索的网站怎么办？
 
 先在浏览器中打开对应网站（如 https://www.xiaoshuopu.com），在网站上搜索小说，找到小说的目录页后复制网址，直接从第二步开始。
 
-### 第二步：看看有哪些章节（可选）
+#### 第二步：看看有哪些章节（可选）
 
 把刚才复制的网址粘到命令里：
 
@@ -127,7 +152,7 @@ python cli.py list "https://www.biquuge.com/0/112/"
 
 会显示这本书有多少章，每章叫什么名字。
 
-### 第三步：下载小说
+#### 第三步：下载小说
 
 把网址粘进去，告诉程序你要下载哪些章节：
 
@@ -135,7 +160,7 @@ python cli.py list "https://www.biquuge.com/0/112/"
 python cli.py download "刚才复制的网址" -s 起始章节号 -e 结束章节号
 ```
 
-#### 常用例子：
+##### 常用例子：
 
 **下载前面 50 章：**
 ```
@@ -145,6 +170,11 @@ python cli.py download "https://www.biquuge.com/0/112/" -s 1 -e 50
 **下载整本书（全部章节）：**
 ```
 python cli.py download "https://www.biquuge.com/0/112/" --all
+```
+
+**每章保存为单独的 txt 文件：**
+```
+python cli.py download "https://www.biquuge.com/0/112/" --all -p
 ```
 
 **只想看看会下载哪些，先不下载：**
@@ -159,11 +189,18 @@ python cli.py download "https://www.biquuge.com/0/112/" --all --resume
 
 ---
 
-## 下载到哪里了？
+### 下载到哪里了？
 
 下载的小说会放在项目文件夹里的 `novels` 文件夹下。
 
+默认情况下，指定范围内的所有章节会合并为一个 txt 文件。使用 `-p` 参数后，每章单独保存为一个 txt 文件。
+
 路径大概是：
+```
+项目文件夹/novels/小说名/1-50章.txt
+```
+
+或使用 `-p` 参数后：
 ```
 项目文件夹/novels/小说名/第1章 章节标题.txt
                       /第2章 章节标题.txt
@@ -172,7 +209,7 @@ python cli.py download "https://www.biquuge.com/0/112/" --all --resume
 
 ---
 
-## 常见问题
+### 常见问题
 
 **Q: 下载速度太快被网站限制了怎么办？**
 
