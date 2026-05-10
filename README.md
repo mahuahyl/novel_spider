@@ -1,6 +1,28 @@
 # 小说下载器 — 新手使用指南
 
-这个工具可以从笔趣阁下载小说章节，保存成 txt 文件到电脑上。
+这个工具可以从多个小说网站下载章节，保存成 txt 文件到电脑上。
+
+## 支持的网站
+
+### 支持搜索的网站
+
+可以直接用小说名搜索，找到小说后下载。
+
+| 网站 | 说明 |
+|------|------|
+| biquuge.com | 笔趣阁 |
+| douyinxs.com | 抖音小说 |
+
+### 不支持搜索的网站
+
+这些网站的搜索接口有反爬保护，无法通过关键词搜索。使用时需要先在浏览器中打开网站，手动找到小说目录页的网址，然后直接用网址执行 `list` 或 `download` 命令。
+
+| 网站 | 说明 |
+|------|------|
+| xiaoshuopu.com | 小说铺 |
+| newqy.com | 掌阅中文 |
+
+---
 
 ## 第一次使用（只需要做一次）
 
@@ -51,9 +73,9 @@ pip install requests lxml
 
 ## 使用方法
 
-以后每次使用，先打开命令提示符，进入项目文件夹，然后执行下面三个命令之一。
+以后每次使用，先打开命令提示符，进入项目文件夹，然后执行下面的命令。
 
-### 第一步：搜索小说
+### 第一步：搜索小说（仅限支持搜索的网站）
 
 ```
 python cli.py search 小说名
@@ -65,18 +87,29 @@ python cli.py search 小说名
 python cli.py search 天才俱乐部
 ```
 
+默认会在所有支持搜索的网站中查找。也可以指定只搜某一个网站：
+
+```
+python cli.py search 天才俱乐部 -s biquuge.com
+```
+
 你会看到类似这样的结果：
 
 ```
-Searching for: 天才俱乐部
+Searching biquuge.com for: 天才俱乐部
 
-  1. 天才俱乐部 — 浅浅与蝉
+  1. [biquuge.com] 天才俱乐部 — 浅浅与蝉
      https://www.biquuge.com/0/112/
 
-Use 'python cli.py list <URL>' to view chapters
+Use 'python cli.py list <URL>' to view chapters, or
+    'python cli.py download <URL>' to download.
 ```
 
 **复制这行网址**（选中后按 Ctrl+C），下一步要用。
+
+#### 不支持搜索的网站怎么办？
+
+先在浏览器中打开对应网站（如 https://www.xiaoshuopu.com），在网站上搜索小说，找到小说的目录页后复制网址，直接从第二步开始。
 
 ### 第二步：看看有哪些章节（可选）
 
@@ -164,4 +197,5 @@ python cli.py download "网址" --all --resume
 
 **Q: 搜索不到小说怎么办？**
 
-先打开 https://www.biquuge.com 在网站上搜索，找到小说后复制网址，直接从第二步开始。
+- 先尝试在不同网站搜索：`python cli.py search 小说名`
+- 或者打开小说网站，在网站上搜索，找到小说目录页后复制网址，直接从第二步开始：`python cli.py list <URL>`
