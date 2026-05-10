@@ -4,3 +4,4 @@ __pycache__/
 novel_spider_config.json
 .DS_Store
 Thumbs.db
+.claude/
