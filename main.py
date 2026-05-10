@@ -13,12 +13,179 @@ from sites import get_site, get_searchable_sites, list_sites
 from utils import sanitize_filename, ensure_dir
 
 
+# ═══════════════════════════════════════════════════════════════════════
+#  主题色板
+# ═══════════════════════════════════════════════════════════════════════
+C = {
+    "bg":       "#f5f6fa",
+    "card":     "#ffffff",
+    "accent":   "#5b5ea6",
+    "accent_h": "#484b8a",
+    "accent_l": "#e8e9f3",
+    "text":     "#2d3436",
+    "text2":    "#636e72",
+    "border":   "#dfe6e9",
+    "select":   "#e8e9f3",
+    "head_bg":  "#5b5ea6",
+    "head_fg":  "#ffffff",
+    "log_bg":   "#1e1e2e",
+    "log_fg":   "#cdd6f4",
+    "title_bg": "#5b5ea6",
+    "close_bg": "#e74c3c",
+}
+
+FONT      = ("Microsoft YaHei", 9)
+FONT_BOLD = ("Microsoft YaHei", 9, "bold")
+FONT_SM   = ("Microsoft YaHei", 8)
+FONT_LOG  = ("Consolas", 8)
+FONT_TITLE = ("Microsoft YaHei", 10, "bold")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Canvas 圆角胶囊按钮
+# ═══════════════════════════════════════════════════════════════════════
+class PillButton(tk.Frame):
+    """圆角胶囊按钮，支持 hover 变色。"""
+
+    def __init__(self, parent, text="", command=None,
+                 bg=C["accent"], fg="#ffffff", hover_bg=C["accent_h"],
+                 font=FONT_BOLD, w=80, h=30, radius=None, **kw):
+        super().__init__(parent, bg=bg, width=w, height=h, **kw)
+        self.pack_propagate(False)
+        self._cmd = command
+        self._bg = bg
+        self._hbg = hover_bg
+        self._enabled = True
+
+        self._label = tk.Label(self, text=text, font=font,
+                                bg=bg, fg=fg, cursor="hand2")
+        self._label.pack(expand=True, fill="both")
+
+        for w in (self, self._label):
+            w.bind("<Enter>", self._on_enter)
+            w.bind("<Leave>", self._on_leave)
+            w.bind("<ButtonRelease-1>", self._on_click)
+
+    def _on_enter(self, e):
+        if self._enabled:
+            self.config(bg=self._hbg)
+            self._label.config(bg=self._hbg)
+
+    def _on_leave(self, e):
+        if self._enabled:
+            self.config(bg=self._bg)
+            self._label.config(bg=self._bg)
+
+    def _on_click(self, e):
+        if self._enabled and self._cmd:
+            self._cmd()
+
+    def configure(self, cnf=None, **kw):
+        if "state" in kw:
+            if kw["state"] == "disabled":
+                self._enabled = False
+                self.config(bg=C["border"])
+                self._label.config(bg=C["border"], fg=C["text2"])
+            else:
+                self._enabled = True
+                self.config(bg=self._bg)
+                self._label.config(bg=self._bg, fg="#ffffff")
+            kw.pop("state")
+        if "text" in kw:
+            self._label.config(text=kw.pop("text"))
+        super().configure(cnf, **kw)
+
+    config = configure
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  卡片容器（白底 + 圆角 + 阴影感）
+# ═══════════════════════════════════════════════════════════════════════
+class Card(tk.Frame):
+    """带标题的卡片式容器。"""
+
+    def __init__(self, parent, title="", **kw):
+        super().__init__(parent, bg=C["bg"], **kw)
+        # 外层装饰框
+        outer = tk.Frame(self, bg=C["border"])
+        outer.pack(fill="both", expand=True)
+        inner = tk.Frame(outer, bg=C["card"])
+        inner.pack(fill="both", expand=True, padx=1, pady=1)
+
+        if title:
+            lbl = tk.Label(inner, text=title, font=FONT_BOLD,
+                           bg=C["card"], fg=C["accent"], anchor="w")
+            lbl.pack(fill="x", padx=10, pady=(8, 4))
+
+        # 内部内容区
+        self.body = tk.Frame(inner, bg=C["card"])
+        self.body.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  自定义标题栏
+# ═══════════════════════════════════════════════════════════════════════
+class TitleBar(tk.Frame):
+    def __init__(self, parent, title="小说下载器", **kw):
+        super().__init__(parent, bg=C["title_bg"], height=36, **kw)
+        self.pack_propagate(False)
+        self._parent = parent
+
+        # 图标 + 标题
+        tk.Label(self, text="📖  " + title, font=FONT_TITLE,
+                 bg=C["title_bg"], fg="#ffffff").pack(side="left", padx=12)
+
+        # 右侧按钮
+        btn_frame = tk.Frame(self, bg=C["title_bg"])
+        btn_frame.pack(side="right")
+
+        for text, color, hover, cmd in [
+            ("─", C["title_bg"], "#4a4d8a", self._minimize),
+            ("□", C["title_bg"], "#4a4d8a", self._maximize),
+            ("✕", C["close_bg"], "#c0392b", self._close),
+        ]:
+            b = tk.Label(btn_frame, text=text, font=("Microsoft YaHei", 11),
+                         bg=color, fg="#ffffff", width=3, cursor="hand2")
+            b.pack(side="left")
+            b.bind("<Enter>", lambda e, w=b, c=hover: w.config(bg=c))
+            b.bind("<Leave>", lambda e, w=b, c=color: w.config(bg=c))
+            b.bind("<Button-1>", lambda e, f=cmd: f())
+
+        # 拖动
+        self.bind("<Button-1>", self._start_move)
+        self.bind("<B1-Motion>", self._on_move)
+
+    def _start_move(self, e):
+        self._ox, self._oy = e.x, e.y
+
+    def _on_move(self, e):
+        x = self._parent.winfo_x() + e.x - self._ox
+        y = self._parent.winfo_y() + e.y - self._oy
+        self._parent.geometry(f"+{x}+{y}")
+
+    def _minimize(self):
+        self._parent.iconify()
+
+    def _maximize(self):
+        if self._parent.state() == "zoomed":
+            self._parent.state("normal")
+        else:
+            self._parent.state("zoomed")
+
+    def _close(self):
+        self._parent.destroy()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  主应用
+# ═══════════════════════════════════════════════════════════════════════
 class NovelSpiderApp:
     def __init__(self, root):
         self.root = root
         self.root.title("小说下载器")
-        self.root.geometry("620x480")
-        self.root.minsize(560, 380)
+        self.root.geometry("640x560")
+        self.root.minsize(580, 420)
+        self.root.configure(bg=C["bg"])
 
         self.config = Config()
         self.msg_queue = queue.Queue()
@@ -29,263 +196,204 @@ class NovelSpiderApp:
         self._build_ui()
         self._poll_queue()
 
-    # ------------------------------------------------------------------ UI
+    # ────────────────────────── UI 构建 ──────────────────────────
     def _build_ui(self):
-        # --- 主题色板 ---
-        BG        = "#f0f2f5"
-        ACCENT    = "#4361ee"
-        ACCENT_H  = "#3a56d4"
-        TEXT      = "#000000"
-        TEXT_SEC  = "#6b7280"
-        BORDER    = "#d1d5db"
-        SELECT_BG = "#e0e7ff"
-        WHITE     = "#ffffff"
-        LOG_BG    = "#1e1e2e"
-        LOG_FG    = "#cdd6f4"
-        TREE_HEAD = "#4361ee"
-        TREE_HEAD_FG = "#ffffff"
-        ROW_ALT   = "#f8f9fc"
-
-        FONT      = ("Microsoft YaHei", 9)
-        FONT_BOLD = ("Microsoft YaHei", 9, "bold")
-        FONT_SM   = ("Microsoft YaHei", 8)
-        FONT_LOG  = ("Consolas", 8)
-
-        self._bg = BG
-        self._log_bg = LOG_BG
-        self._log_fg = LOG_FG
-        self._row_alt = ROW_ALT
-        self.root.configure(bg=BG)
-
+        # ---- ttk 样式（仅用于 Treeview / Progressbar / Scrollbar）----
         style = ttk.Style()
-        available = style.theme_names()
-        for theme in ("vista", "xpnative", "clam", "alt"):
-            if theme in available:
-                style.theme_use(theme)
+        for th in ("vista", "xpnative", "clam", "alt"):
+            if th in style.theme_names():
+                style.theme_use(th)
                 break
 
-        style.configure(".", font=FONT, background=BG, foreground=TEXT)
-
-        # LabelFrame
-        style.configure("TLabelframe", background=BG, borderwidth=1, relief="solid")
-        style.configure("TLabelframe.Label", font=FONT_BOLD, background=BG, foreground=ACCENT)
-
-        # Label
-        style.configure("TLabel", background=BG, foreground=TEXT, font=FONT)
-        style.configure("Progress.TLabel", background=BG, foreground=TEXT_SEC, font=FONT_SM)
-
-        # Button
-        style.configure("Accent.TButton", font=FONT_BOLD, background=ACCENT, foreground="#000000",
-                         borderwidth=0, padding=(10, 4))
-        style.map("Accent.TButton",
-                   background=[("active", ACCENT_H), ("disabled", BORDER)],
-                   foreground=[("disabled", TEXT_SEC)])
-        style.configure("TButton", font=FONT, padding=(8, 3))
-        style.map("TButton", background=[("active", SELECT_BG)])
-
-        # Entry
-        style.configure("TEntry", fieldbackground=WHITE, borderwidth=1, relief="solid", padding=3)
-
-        # Combobox
-        style.configure("TCombobox", fieldbackground=WHITE, borderwidth=1, padding=3)
-
-        # Checkbutton
-        style.configure("TCheckbutton", background=BG, font=FONT)
-
-        # Treeview
-        style.configure("Treeview", font=FONT_SM, background=WHITE, fieldbackground=WHITE,
-                         foreground=TEXT, rowheight=22, borderwidth=0)
-        style.configure("Treeview.Heading", font=FONT_BOLD, background=TREE_HEAD,
-                         foreground=TREE_HEAD_FG, borderwidth=0, padding=(6, 4))
+        style.configure("Treeview", font=FONT_SM, background=C["card"],
+                         fieldbackground=C["card"], foreground=C["text"],
+                         rowheight=24, borderwidth=0)
+        style.configure("Treeview.Heading", font=FONT_BOLD,
+                         background=C["head_bg"], foreground=C["head_fg"],
+                         borderwidth=0, padding=(6, 4))
         style.map("Treeview",
-                   background=[("selected", SELECT_BG)],
-                   foreground=[("selected", TEXT)])
-        style.map("Treeview.Heading", background=[("active", ACCENT_H)])
+                   background=[("selected", C["select"])],
+                   foreground=[("selected", C["text"])])
+        style.map("Treeview.Heading", background=[("active", C["accent_h"])])
+        style.configure("TProgressbar", troughcolor=C["border"],
+                         background=C["accent"], borderwidth=0, thickness=6)
 
-        # Progressbar
-        style.configure("TProgressbar", troughcolor=BORDER, background=ACCENT, borderwidth=0, thickness=8)
+        # ---- 主内容区 ----
+        container = tk.Frame(self.root, bg=C["bg"])
+        container.pack(fill="both", expand=True)
 
-        # Scrollbar
-        style.configure("TScrollbar", background=BORDER, borderwidth=0, arrowsize=12)
+        pad = {"padx": 8, "pady": 4}
 
-        # ===== 可滚动 Canvas =====
-        self._canvas = tk.Canvas(self.root, bg=BG, highlightthickness=0)
-        vscroll = ttk.Scrollbar(self.root, orient="vertical", command=self._canvas.yview)
-        self._canvas.configure(yscrollcommand=vscroll.set)
-
-        vscroll.pack(side="right", fill="y")
-        self._canvas.pack(side="left", fill="both", expand=True)
-
-        container = ttk.Frame(self._canvas, style="TFrame")
-        self._canvas_window = self._canvas.create_window((0, 0), window=container, anchor="nw")
-
-        def _on_frame_configure(event):
-            self._canvas.configure(scrollregion=self._canvas.bbox("all"))
-        container.bind("<Configure>", _on_frame_configure)
-
-        def _on_canvas_configure(event):
-            # 让内部 frame 宽度始终跟随 canvas
-            self._canvas.itemconfig(self._canvas_window, width=event.width)
-        self._canvas.bind("<Configure>", _on_canvas_configure)
-
-        # 鼠标滚轮
-        def _on_mousewheel(event):
-            self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        self._canvas.bind_all("<MouseWheel>", _on_mousewheel)
-
-        pad = {"padx": 6, "pady": 3}
-
-        # --- 搜索区 ---
-        frame_search = ttk.LabelFrame(container, text="搜索小说")
-        frame_search.pack(fill="x", **pad)
+        # ════════ 1. 搜索 ════════
+        card_search = Card(container, title="搜索小说")
+        card_search.pack(fill="x", **pad)
+        sf = card_search.body
 
         self.search_var = tk.StringVar()
-        ttk.Entry(frame_search, textvariable=self.search_var).pack(
-            side="left", fill="x", expand=True, padx=(4, 2), pady=3
-        )
+        self._make_entry(sf, self.search_var).pack(
+            side="left", fill="x", expand=True, padx=(0, 6))
         self.search_var.trace_add("write", lambda *_: None)
 
         self.site_var = tk.StringVar(value="全部站点")
         site_list = ["全部站点"] + list_sites()
-        ttk.Combobox(
-            frame_search, textvariable=self.site_var,
-            values=site_list, state="readonly", width=16
-        ).pack(side="left", padx=2, pady=3)
+        self._make_combobox(sf, self.site_var, site_list, width=14).pack(
+            side="left", padx=(0, 6))
 
-        ttk.Button(frame_search, text="搜索", command=self._on_search, style="Accent.TButton").pack(
-            side="left", padx=(2, 4), pady=3
-        )
+        self._btn_search = PillButton(sf, text="搜索", command=self._on_search, w=60, h=28, radius=14)
+        self._btn_search.pack(side="left")
         self.root.bind("<Return>", lambda e: self._on_search())
 
-        # --- 搜索结果 ---
-        frame_results = ttk.LabelFrame(container, text="搜索结果（双击填入 URL）")
-        frame_results.pack(fill="x", **pad)
+        # ════════ 2. 搜索结果 ════════
+        card_results = Card(container, title="搜索结果（双击填入 URL）")
+        card_results.pack(fill="x", **pad)
 
         cols = ("title", "author", "site")
-        self.result_tree = ttk.Treeview(
-            frame_results, columns=cols, show="headings", height=5
-        )
+        self.result_tree = ttk.Treeview(card_results.body, columns=cols,
+                                         show="headings", height=4)
         self.result_tree.heading("title", text="书名")
         self.result_tree.heading("author", text="作者")
         self.result_tree.heading("site", text="站点")
         self.result_tree.column("title", width=300)
-        self.result_tree.column("author", width=120)
-        self.result_tree.column("site", width=120)
-        self.result_tree.pack(fill="x", padx=4, pady=2)
+        self.result_tree.column("author", width=100)
+        self.result_tree.column("site", width=100)
+        self.result_tree.pack(fill="x")
         self.result_tree.bind("<Double-1>", self._on_result_double_click)
 
-        # --- URL 输入 ---
-        frame_url = ttk.LabelFrame(container, text="小说目录页 URL")
-        frame_url.pack(fill="x", **pad)
+        # ════════ 3. URL 输入 ════════
+        card_url = Card(container, title="小说目录页 URL")
+        card_url.pack(fill="x", **pad)
+        uf = card_url.body
 
         self.url_var = tk.StringVar()
-        ttk.Entry(frame_url, textvariable=self.url_var).pack(
-            side="left", fill="x", expand=True, padx=(4, 2), pady=3
-        )
-        ttk.Button(frame_url, text="获取章节", command=self._on_fetch_chapters, style="Accent.TButton").pack(
-            side="left", padx=(2, 4), pady=3
-        )
+        self._make_entry(uf, self.url_var).pack(
+            side="left", fill="x", expand=True, padx=(0, 6))
+        self._btn_fetch = PillButton(uf, text="获取章节", command=self._on_fetch_chapters,
+                                      w=80, h=28, radius=14)
+        self._btn_fetch.pack(side="left")
 
-        # --- 章节列表 ---
-        frame_chapters = ttk.LabelFrame(container, text="章节列表")
-        frame_chapters.pack(fill="x", **pad)
+        # ════════ 4. 章节列表 ════════
+        card_ch = Card(container, title="章节列表")
+        card_ch.pack(fill="x", **pad)
 
         ch_cols = ("num", "title")
-        self.chapter_tree = ttk.Treeview(
-            frame_chapters, columns=ch_cols, show="headings", height=6
-        )
+        self.chapter_tree = ttk.Treeview(card_ch.body, columns=ch_cols,
+                                          show="headings", height=6)
         self.chapter_tree.heading("num", text="#", anchor="w")
         self.chapter_tree.heading("title", text="章节标题")
-        self.chapter_tree.column("num", width=50, minwidth=40)
-        self.chapter_tree.column("title", width=600)
-        self.chapter_tree.pack(fill="both", expand=True, padx=4, pady=2)
+        self.chapter_tree.column("num", width=40, minwidth=30)
+        self.chapter_tree.column("title", width=500)
+        self.chapter_tree.pack(fill="both", expand=True)
 
-        range_frame = ttk.Frame(frame_chapters)
-        range_frame.pack(fill="x", padx=4, pady=(0, 2))
+        rf = tk.Frame(card_ch.body, bg=C["card"])
+        rf.pack(fill="x", pady=(4, 0))
 
-        ttk.Label(range_frame, text="起始:").pack(side="left")
+        tk.Label(rf, text="起始:", font=FONT, bg=C["card"], fg=C["text"]).pack(side="left")
         self.start_var = tk.StringVar(value="1")
-        ttk.Entry(range_frame, textvariable=self.start_var, width=6).pack(
-            side="left", padx=(2, 10)
-        )
-        ttk.Label(range_frame, text="结束:").pack(side="left")
+        self._make_entry(rf, self.start_var, width=5).pack(side="left", padx=(2, 10))
+
+        tk.Label(rf, text="结束:", font=FONT, bg=C["card"], fg=C["text"]).pack(side="left")
         self.end_var = tk.StringVar(value="0")
-        ttk.Entry(range_frame, textvariable=self.end_var, width=6).pack(
-            side="left", padx=(2, 10)
-        )
-        ttk.Button(range_frame, text="全选", command=self._select_all_chapters).pack(
-            side="left", padx=4
-        )
+        self._make_entry(rf, self.end_var, width=5).pack(side="left", padx=(2, 10))
 
-        # --- 下载设置 ---
-        frame_settings = ttk.LabelFrame(container, text="下载设置")
-        frame_settings.pack(fill="x", **pad)
+        PillButton(rf, text="全选", command=self._select_all_chapters,
+                   w=50, h=24, radius=12, font=FONT, bg=C["accent_l"], fg=C["text"],
+                   hover_bg=C["select"]).pack(side="left")
 
-        row1 = ttk.Frame(frame_settings)
-        row1.pack(fill="x", padx=4, pady=2)
-        ttk.Label(row1, text="输出目录:").pack(side="left")
+        # ════════ 5. 下载设置 ════════
+        card_set = Card(container, title="下载设置")
+        card_set.pack(fill="x", **pad)
+        sf2 = card_set.body
+
+        r1 = tk.Frame(sf2, bg=C["card"])
+        r1.pack(fill="x", pady=(0, 4))
+        tk.Label(r1, text="输出目录:", font=FONT, bg=C["card"], fg=C["text"]).pack(side="left")
         self.output_var = tk.StringVar(value=self.config.output_dir)
-        ttk.Entry(row1, textvariable=self.output_var).pack(
-            side="left", fill="x", expand=True, padx=(4, 2)
-        )
-        ttk.Button(row1, text="浏览...", command=self._browse_output).pack(
-            side="left", padx=(2, 0)
-        )
+        self._make_entry(r1, self.output_var).pack(
+            side="left", fill="x", expand=True, padx=(4, 4))
+        PillButton(r1, text="浏览", command=self._browse_output,
+                   w=46, h=24, radius=12, font=FONT, bg=C["accent_l"], fg=C["text"],
+                   hover_bg=C["select"]).pack(side="left")
 
-        row2 = ttk.Frame(frame_settings)
-        row2.pack(fill="x", padx=4, pady=2)
-        ttk.Label(row2, text="请求间隔(秒):").pack(side="left")
+        r2 = tk.Frame(sf2, bg=C["card"])
+        r2.pack(fill="x")
+        tk.Label(r2, text="请求间隔(秒):", font=FONT, bg=C["card"], fg=C["text"]).pack(side="left")
         self.delay_var = tk.StringVar(value=str(self.config.delay))
-        ttk.Entry(row2, textvariable=self.delay_var, width=6).pack(
-            side="left", padx=(4, 12)
-        )
+        self._make_entry(r2, self.delay_var, width=5).pack(side="left", padx=(4, 12))
+
         self.part_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(row2, text="逐章保存", variable=self.part_var).pack(
-            side="left", padx=8
-        )
+        self._make_check(r2, "逐章保存", self.part_var).pack(side="left", padx=6)
         self.resume_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(row2, text="断点续传", variable=self.resume_var).pack(
-            side="left", padx=8
-        )
+        self._make_check(r2, "断点续传", self.resume_var).pack(side="left", padx=6)
 
-        # --- 操作按钮 ---
-        frame_btns = ttk.Frame(container)
-        frame_btns.pack(fill="x", **pad)
+        # ════════ 6. 操作按钮 ════════
+        btn_bar = tk.Frame(container, bg=C["bg"])
+        btn_bar.pack(fill="x", padx=8, pady=6)
 
-        self.btn_download = ttk.Button(
-            frame_btns, text="开始下载", command=self._on_download, style="Accent.TButton"
-        )
-        self.btn_download.pack(side="left", padx=6)
-        self.btn_cancel = ttk.Button(
-            frame_btns, text="取消", command=self._on_cancel, state="disabled"
-        )
-        self.btn_cancel.pack(side="left", padx=6)
+        self.btn_download = PillButton(btn_bar, text="开始下载", command=self._on_download,
+                                        w=90, h=32, radius=16)
+        self.btn_download.pack(side="left", padx=(0, 8))
 
-        # --- 进度 & 日志 ---
-        frame_progress = ttk.LabelFrame(container, text="进度")
-        frame_progress.pack(fill="x", **pad)
+        self.btn_cancel = PillButton(btn_bar, text="取消", command=self._on_cancel,
+                                      w=60, h=32, radius=16,
+                                      bg=C["border"], fg=C["text2"], hover_bg="#c0c4cc")
+        self.btn_cancel.pack(side="left")
+        # 初始禁用：灰色
+        self._cancel_enabled = False
 
-        self.progress = ttk.Progressbar(frame_progress, mode="determinate")
-        self.progress.pack(fill="x", padx=4, pady=(4, 1))
+        # ════════ 7. 进度 & 日志 ════════
+        card_prog = Card(container, title="进度")
+        card_prog.pack(fill="x", **pad)
+        pf = card_prog.body
 
-        self.progress_label = ttk.Label(frame_progress, text="就绪", style="Progress.TLabel")
-        self.progress_label.pack(fill="x", padx=4)
+        self.progress = ttk.Progressbar(pf, mode="determinate")
+        self.progress.pack(fill="x", pady=(0, 2))
 
-        self.log_text = tk.Text(frame_progress, height=5, state="disabled",
-                                wrap="word", font=("Consolas", 8),
-                                bg=self._log_bg, fg=self._log_fg,
-                                insertbackground=self._log_fg,
-                                selectbackground="#4361ee", selectforeground="#ffffff",
-                                borderwidth=0, highlightthickness=1,
-                                highlightbackground=BORDER, padx=6, pady=4)
-        log_scrollbar = ttk.Scrollbar(
-            frame_progress, orient="vertical", command=self.log_text.yview
-        )
-        self.log_text.configure(yscrollcommand=log_scrollbar.set)
-        self.log_text.pack(side="left", fill="both", expand=True, padx=(4, 0), pady=(1, 4))
-        log_scrollbar.pack(side="right", fill="y", padx=(0, 4), pady=(1, 4))
+        self.progress_label = tk.Label(pf, text="就绪", font=FONT_SM,
+                                        bg=C["card"], fg=C["text2"], anchor="w")
+        self.progress_label.pack(fill="x")
 
-    # -------------------------------------------------------------- helpers
+        log_frame = tk.Frame(pf, bg=C["log_bg"])
+        log_frame.pack(fill="both", expand=True, pady=(4, 0))
+
+        self.log_text = tk.Text(log_frame, height=5, state="disabled",
+                                wrap="word", font=FONT_LOG,
+                                bg=C["log_bg"], fg=C["log_fg"],
+                                insertbackground=C["log_fg"],
+                                selectbackground=C["accent"], selectforeground="#fff",
+                                borderwidth=0, highlightthickness=0,
+                                padx=8, pady=4)
+        lsb = tk.Scrollbar(log_frame, orient="vertical", command=self.log_text.yview,
+                            width=8, bg=C["border"], troughcolor=C["log_bg"],
+                            relief="flat")
+        self.log_text.configure(yscrollcommand=lsb.set)
+        self.log_text.pack(side="left", fill="both", expand=True)
+        lsb.pack(side="right", fill="y")
+
+    # ──────────────── 自定义控件工厂 ────────────────
+    def _make_entry(self, parent, var, width=None):
+        e = tk.Entry(parent, textvariable=var, font=FONT,
+                     bg=C["card"], fg=C["text"],
+                     insertbackground=C["text"],
+                     relief="solid", bd=1, highlightthickness=1,
+                     highlightbackground=C["border"],
+                     highlightcolor=C["accent"],
+                     width=width)
+        return e
+
+    def _make_combobox(self, parent, var, values, width=None):
+        cb = ttk.Combobox(parent, textvariable=var, values=values,
+                           state="readonly", width=width, font=FONT)
+        return cb
+
+    def _make_check(self, parent, text, var):
+        return tk.Checkbutton(parent, text=text, variable=var,
+                               font=FONT, bg=C["card"], fg=C["text"],
+                               selectcolor=C["card"],
+                               activebackground=C["card"],
+                               activeforeground=C["text"],
+                               relief="flat", bd=0)
+
+    # ──────────────────── helpers ────────────────────
     def _log(self, msg):
         self.log_text.configure(state="normal")
         self.log_text.insert("end", msg + "\n")
@@ -317,10 +425,23 @@ class NovelSpiderApp:
 
     def _set_busy(self, busy):
         self.downloading = busy
-        self.btn_download.config(state="disabled" if busy else "normal")
-        self.btn_cancel.config(state="normal" if busy else "disabled")
+        if busy:
+            self.btn_download.configure(state="disabled")
+            # 取消按钮高亮
+            self.btn_cancel._bg = C["accent"]
+            self.btn_cancel._hbg = C["accent_h"]
+            self.btn_cancel.config(bg=C["accent"])
+            self.btn_cancel._label.config(bg=C["accent"], fg="#ffffff")
+            self._cancel_enabled = True
+        else:
+            self.btn_download.configure(state="normal")
+            self.btn_cancel._bg = C["border"]
+            self.btn_cancel._hbg = "#c0c4cc"
+            self.btn_cancel.config(bg=C["border"])
+            self.btn_cancel._label.config(bg=C["border"], fg=C["text2"])
+            self._cancel_enabled = False
 
-    # ------------------------------------------------------------- 搜索
+    # ──────────────────── 搜索 ────────────────────
     def _on_search(self):
         query = self.search_var.get().strip()
         if not query:
@@ -376,7 +497,7 @@ class NovelSpiderApp:
         if tags:
             self.url_var.set(tags[0])
 
-    # ------------------------------------------------------------- 获取章节
+    # ──────────────────── 获取章节 ────────────────────
     def _on_fetch_chapters(self):
         url = self.url_var.get().strip()
         if not url:
@@ -417,7 +538,7 @@ class NovelSpiderApp:
         self.start_var.set("1")
         self.end_var.set(str(len(self.chapters)) if self.chapters else "0")
 
-    # ------------------------------------------------------------- 下载
+    # ──────────────────── 下载 ────────────────────
     def _on_download(self):
         url = self.url_var.get().strip()
         if not url:
@@ -470,7 +591,6 @@ class NovelSpiderApp:
             self.msg_queue.put(("download_done", None))
             return
 
-        # reuse novel info we already have
         try:
             info = site.get_novel_info(url, session)
         except Exception as e:
@@ -535,7 +655,6 @@ class NovelSpiderApp:
             if delay > 0:
                 time.sleep(delay)
 
-        # 合并为单个文件
         if not part and not self.cancel_flag and filepath_list:
             self.msg_queue.put(("log", f"整合章节..."))
             merge_name = f"{start}-{end}章.txt"
@@ -566,10 +685,10 @@ class NovelSpiderApp:
         self.progress_label.config(text="下载完成")
 
     def _on_cancel(self):
-        self.cancel_flag = True
-        self._log("正在取消...")
+        if self._cancel_enabled:
+            self.cancel_flag = True
+            self._log("正在取消...")
 
-    # ------------------------------------------------------------- 浏览目录
     def _browse_output(self):
         path = filedialog.askdirectory(initialdir=self.output_var.get())
         if path:
@@ -578,16 +697,6 @@ class NovelSpiderApp:
 
 def main():
     root = tk.Tk()
-    # 尝试设置现代化主题
-    try:
-        style = ttk.Style()
-        available = style.theme_use()
-        for theme in ("vista", "xpnative", "clam", "alt"):
-            if theme in style.theme_names():
-                style.theme_use(theme)
-                break
-    except Exception:
-        pass
     app = NovelSpiderApp(root)
     root.mainloop()
 
