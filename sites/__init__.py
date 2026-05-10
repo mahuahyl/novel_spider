@@ -36,3 +36,4 @@ def get_all_sites():
 # Import adapters to trigger registration
 import sites.biquuge  # noqa: E402, F401
 import sites.xiaoshuopu  # noqa: E402, F401
+import sites.newqy  # noqa: E402, F401
